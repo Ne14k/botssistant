@@ -1,0 +1,9 @@
+### Test Signup
+POST http://localhost:3000/auth/signup
+Content-Type: application/json
+
+{
+  "businessName": "My Test Business",
+  "email": "myemail@example.com",
+  "password": "password123"
+}

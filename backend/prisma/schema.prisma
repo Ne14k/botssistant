@@ -1,0 +1,88 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id            String    @id @default(cuid())
+  businessName  String    @map("business_name")
+  email         String    @unique
+  hashedPassword String   @map("hashed_password")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  chatbots      Chatbot[]
+  
+  @@map("clients")
+}
+
+model Chatbot {
+  id             String   @id @default(cuid())
+  clientId       String   @map("client_id")
+  welcomeMessage String   @map("welcome_message")
+  themeColor     String   @default("#3B82F6") @map("theme_color")
+  faqs           Json     @default("[]")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  client         Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  leads          Lead[]
+  messages       Message[]
+  
+  @@map("chatbots")
+}
+
+model Lead {
+  id         String   @id @default(cuid())
+  chatbotId  String   @map("chatbot_id")
+  name       String?
+  email      String?
+  phone      String?
+  message    String
+  source     String   @default("chat") // chat, form, etc.
+  status     String   @default("new") // new, contacted, converted, closed
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  chatbot    Chatbot  @relation(fields: [chatbotId], references: [id], onDelete: Cascade)
+  
+  @@map("leads")
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  chatbotId  String   @map("chatbot_id")
+  sessionId  String   @map("session_id") // To group conversation sessions
+  role       String   // 'user' or 'bot'
+  text       String
+  metadata   Json?    // Store additional data like user info, context
+  createdAt  DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  chatbot    Chatbot  @relation(fields: [chatbotId], references: [id], onDelete: Cascade)
+  
+  @@map("messages")
+}
+
+model ApiKey {
+  id         String   @id @default(cuid())
+  chatbotId  String   @map("chatbot_id")
+  keyHash    String   @unique @map("key_hash")
+  name       String   @default("Default")
+  isActive   Boolean  @default(true) @map("is_active")
+  lastUsed   DateTime? @map("last_used")
+  createdAt  DateTime @default(now()) @map("created_at")
+  
+  @@map("api_keys")
+}
