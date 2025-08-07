@@ -11,15 +11,15 @@ datasource db {
 }
 
 model Client {
-  id            String    @id @default(cuid())
-  businessName  String    @map("business_name")
-  email         String    @unique
-  hashedPassword String   @map("hashed_password")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id             String    @id @default(cuid())
+  supabaseUserId String    @unique @map("supabase_user_id")
+  businessName   String    @map("business_name")
+  email          String    @unique
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
   
   // Relations
-  chatbots      Chatbot[]
+  chatbots       Chatbot[]
   
   @@map("clients")
 }

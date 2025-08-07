@@ -18,15 +18,10 @@ const validate = (schema) => {
 
 // Validation schemas
 const schemas = {
-  signup: Joi.object({
+  syncUser: Joi.object({
+    supabaseUserId: Joi.string().required(),
     businessName: Joi.string().min(2).max(100).required(),
     email: Joi.string().email().required(),
-    password: Joi.string().min(8).required(),
-  }),
-
-  login: Joi.object({
-    email: Joi.string().email().required(),
-    password: Joi.string().required(),
   }),
 
   chatbotConfig: Joi.object({

@@ -1,6 +1,4 @@
 const express = require("express")
-const bcrypt = require("bcryptjs")
-const jwt = require("jsonwebtoken")
 const { PrismaClient } = require("@prisma/client")
 const { validate, schemas } = require("../middleware/validation")
 
@@ -8,31 +6,36 @@ const router = express.Router()
 const prisma = new PrismaClient()
 
 /**
- * POST /auth/signup
- * Register a new client
+ * POST /auth/sync-user
+ * Sync Supabase user to clients table
  */
-router.post("/signup", validate(schemas.signup), async (req, res) => {
+router.post("/sync-user", validate(schemas.syncUser), async (req, res) => {
   try {
-    const { businessName, email, password } = req.body
+    const { supabaseUserId, businessName, email } = req.body
 
     // Check if client already exists
     const existingClient = await prisma.client.findUnique({
-      where: { email },
+      where: { supabaseUserId },
     })
 
     if (existingClient) {
-      return res.status(400).json({ error: "Email already registered" })
+      return res.status(200).json({
+        message: "Client already exists",
+        client: {
+          id: existingClient.id,
+          businessName: existingClient.businessName,
+          email: existingClient.email,
+          chatbotId: existingClient.chatbots?.[0]?.id,
+        },
+      })
     }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12)
 
     // Create client and default chatbot
     const client = await prisma.client.create({
       data: {
+        supabaseUserId,
         businessName,
         email,
-        hashedPassword,
         chatbots: {
           create: {
             welcomeMessage: `Hello! Welcome to ${businessName}. How can I help you today?`,
@@ -55,14 +58,8 @@ router.post("/signup", validate(schemas.signup), async (req, res) => {
       },
     })
 
-    // Generate JWT token
-    const token = jwt.sign({ clientId: client.id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || "7d",
-    })
-
     res.status(201).json({
-      message: "Account created successfully",
-      token,
+      message: "Client synced successfully",
       client: {
         id: client.id,
         businessName: client.businessName,
@@ -71,22 +68,21 @@ router.post("/signup", validate(schemas.signup), async (req, res) => {
       },
     })
   } catch (error) {
-    console.error("Signup error:", error)
-    res.status(500).json({ error: "Failed to create account" })
+    console.error("Sync user error:", error)
+    res.status(500).json({ error: "Failed to sync user" })
   }
 })
 
 /**
- * POST /auth/login
- * Authenticate client
+ * GET /auth/client/:supabaseUserId
+ * Get client data by Supabase user ID
  */
-router.post("/login", validate(schemas.login), async (req, res) => {
+router.get("/client/:supabaseUserId", async (req, res) => {
   try {
-    const { email, password } = req.body
+    const { supabaseUserId } = req.params
 
-    // Find client
     const client = await prisma.client.findUnique({
-      where: { email },
+      where: { supabaseUserId },
       include: {
         chatbots: {
           where: { isActive: true },
@@ -96,23 +92,10 @@ router.post("/login", validate(schemas.login), async (req, res) => {
     })
 
     if (!client) {
-      return res.status(401).json({ error: "Invalid credentials" })
+      return res.status(404).json({ error: "Client not found" })
     }
-
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, client.hashedPassword)
-    if (!isValidPassword) {
-      return res.status(401).json({ error: "Invalid credentials" })
-    }
-
-    // Generate JWT token
-    const token = jwt.sign({ clientId: client.id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || "7d",
-    })
 
     res.json({
-      message: "Login successful",
-      token,
       client: {
         id: client.id,
         businessName: client.businessName,
@@ -121,8 +104,8 @@ router.post("/login", validate(schemas.login), async (req, res) => {
       },
     })
   } catch (error) {
-    console.error("Login error:", error)
-    res.status(500).json({ error: "Login failed" })
+    console.error("Get client error:", error)
+    res.status(500).json({ error: "Failed to get client" })
   }
 })
 
